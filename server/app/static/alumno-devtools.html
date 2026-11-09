@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>TiendaVulnerable — Herramientas de alumno</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
+    input, button { font-size: 1rem; padding: 0.4rem; margin: 0.2rem 0; }
+    input { width: 100%; box-sizing: border-box; }
+    pre { background: #f3f3f3; padding: 1rem; overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
+    section { margin-bottom: 2rem; }
+    .volver { font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <p class="volver"><a href="/">← volver a la tienda</a></p>
+  <h1>🛠️ Herramientas de alumno</h1>
+  <p>Vista de inspección para resolver el desafío: acá se ve el token crudo, se puede llamar a <code>/me</code> y <code>/tienda/comprar</code> a mano, y probar un token forjado. Datos ficticios: <code>alice/alice123</code>, <code>bob/bob123</code>.</p>
+
+  <section>
+    <h2>1. Login</h2>
+    <input id="username" placeholder="usuario (alice o bob)" value="alice" />
+    <input id="password" type="password" placeholder="password" value="alice123" />
+    <button id="btnLogin">Iniciar sesion</button>
+    <p>Token crudo (tambien queda en <code>localStorage.token</code>, visible en DevTools &gt; Application):</p>
+    <pre id="token">-</pre>
+  </section>
+
+  <section>
+    <h2>2. Mi perfil (GET /me)</h2>
+    <button id="btnMe">Ver mi perfil</button>
+    <pre id="perfil">-</pre>
+  </section>
+
+  <section>
+    <h2>3. Comprar (POST /tienda/comprar)</h2>
+    <input id="producto" placeholder="producto" value="notebook-gamer" />
+    <button id="btnComprar">Comprar</button>
+    <pre id="compra">-</pre>
+  </section>
+
+  <section>
+    <h2>Usar un token forjado a mano</h2>
+    <p>Pegá acá un JWT que hayas firmado vos (ver README, paso 3) y usalo contra /me o /tienda/comprar:</p>
+    <input id="tokenForjado" placeholder="pegar JWT forjado" />
+    <button id="btnUsarForjado">Usar este token</button>
+  </section>
+
+  <script src="devtools.js"></script>
+</body>
+</html>
