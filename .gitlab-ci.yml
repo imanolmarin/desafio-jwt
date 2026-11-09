@@ -1,0 +1,22 @@
+# Pipeline para GitLab (labsys). Hoy el repo vive en GitHub y corre el
+# equivalente en .github/workflows/security.yml; este archivo queda listo
+# para cuando se migre a GitLab.
+stages:
+  - test
+
+include:
+  - template: Security/SAST.gitlab-ci.yml
+  - template: Security/Secret-Detection.gitlab-ci.yml
+  - template: Jobs/Dependency-Scanning.gitlab-ci.yml
+
+variables:
+  SAST_EXCLUDED_PATHS: "server/tests, server/.venv"
+  SECRET_DETECTION_HISTORIC_SCAN: "true"
+
+tests:
+  stage: test
+  image: python:3.12-slim
+  script:
+    - cd server
+    - pip install --quiet -r requirements.txt
+    - pytest -q

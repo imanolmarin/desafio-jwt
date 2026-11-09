@@ -1,0 +1,94 @@
+# Equivalente en GitHub Actions de los templates de GitLab
+#   Security/SAST.gitlab-ci.yml + Security/Secret-Detection.gitlab-ci.yml
+# (ver .gitlab-ci.yml, que queda listo para cuando el repo pase a GitLab).
+name: security
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: pytest -q
+
+  # SAST: igual que en GitLab, el job publica el reporte pero no corta el
+  # pipeline (el codigo es vulnerable a proposito). Los hallazgos quedan en el
+  # artifact y en el resumen del job.
+  sast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet semgrep==1.144.0 bandit==1.9.4
+      - name: semgrep
+        env:
+          SEMGREP_SEND_METRICS: "off"
+        run: |
+          semgrep scan --metrics=off \
+            --config p/security-audit --config p/python --config p/secrets \
+            --exclude server/tests --json --output gl-sast-report.json server/
+          semgrep scan --metrics=off \
+            --config p/security-audit --config p/python --config p/secrets \
+            --exclude server/tests --text server/ | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: bandit
+        run: |
+          bandit -r server -x server/tests -f json -o bandit-report.json || true
+          bandit -r server -x server/tests -f txt || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sast-reports
+          path: |
+            gl-sast-report.json
+            bandit-report.json
+
+  # Secret detection: gitleaks sobre TODO el historial de git. Si encuentra
+  # algo, el job falla (un secreto commiteado hay que rotarlo, aunque se borre).
+  secret_detection:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: gitleaks
+        run: |
+          docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.28.0 \
+            git /repo --no-banner -v --redact \
+            --report-format json --report-path /repo/gl-secret-detection-report.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: secret-detection-report
+          path: gl-secret-detection-report.json
+
+  # SCA: dependencias con CVEs conocidas.
+  dependency_scanning:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet pip-audit
+      - run: pip-audit -r server/requirements.txt -f json -o gl-dependency-scanning-report.json || true
+      - run: pip-audit -r server/requirements.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-scanning-report
+          path: gl-dependency-scanning-report.json
