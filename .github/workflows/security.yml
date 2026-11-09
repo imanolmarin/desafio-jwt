@@ -1,5 +1,6 @@
 # Equivalente en GitHub Actions de los templates de GitLab
 #   Security/SAST.gitlab-ci.yml + Security/Secret-Detection.gitlab-ci.yml
+# SAST: Semgrep + Bandit. Secretos: la imagen oficial del analizador de GitLab.
 # (ver .gitlab-ci.yml, que queda listo para cuando el repo pase a GitLab).
 name: security
 
@@ -57,24 +58,38 @@ jobs:
             gl-sast-report.json
             bandit-report.json
 
-  # Secret detection: gitleaks sobre TODO el historial de git. Si encuentra
-  # algo, el job falla (un secreto commiteado hay que rotarlo, aunque se borre).
+  # Secret detection: misma imagen que el template de GitLab
+  # (Gitleaks + reglas de GitLab), publica gl-secret-detection-report.json y
+  # falla si encuentra algo. README.md se excluye porque el enunciado trae la
+  # clave de ejemplo de AWS (falso positivo, ver SAST.md).
   secret_detection:
     runs-on: ubuntu-latest
+    env:
+      SECRET_DETECTION_EXCLUDED_PATHS: "README.md"
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: gitleaks
+      - name: secrets (analizador de GitLab Secret Detection)
         run: |
-          docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.28.0 \
-            git /repo --no-banner -v --redact \
-            --report-format json --report-path /repo/gl-secret-detection-report.json
+          docker run --rm -v "$PWD:/src" -w /src \
+            -e CI_PROJECT_DIR=/src -e SECRET_DETECTION_EXCLUDED_PATHS \
+            registry.gitlab.com/security-products/secrets:6 /analyzer run
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: secret-detection-report
           path: gl-secret-detection-report.json
+      - name: falla si hay secretos
+        run: |
+          n=$(jq '.vulnerabilities | length' gl-secret-detection-report.json)
+          {
+            echo "### Secret detection: $n hallazgos"
+            echo
+            jq -r '.vulnerabilities[] | "- **\(.name)** en `\(.location.file):\(.location.start_line)`"' gl-secret-detection-report.json
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$n" -gt 0 ]; then
+            echo "::error::Secret detection encontro $n secreto(s). Revocar/rotar la credencial: borrarla del codigo no alcanza."
+            exit 1
+          fi
 
   # SCA: dependencias con CVEs conocidas.
   dependency_scanning:

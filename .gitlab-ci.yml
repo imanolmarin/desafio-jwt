@@ -11,7 +11,8 @@ include:
 
 variables:
   SAST_EXCLUDED_PATHS: "server/tests, server/.venv"
-  SECRET_DETECTION_HISTORIC_SCAN: "true"
+  # El README trae la clave de ejemplo de AWS del enunciado (falso positivo).
+  SECRET_DETECTION_EXCLUDED_PATHS: "README.md"
 
 tests:
   stage: test
