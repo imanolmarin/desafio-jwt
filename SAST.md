@@ -58,7 +58,7 @@ Todas las herramientas corren contra la copia local; solo bajan reglas / bases d
 1. Agregué `server/app/config_prueba.py` con `AWS_SECRET_ACCESS_KEY = "<la clave de ejemplo de la consigna>"`.
 2. **En local**: el `gitleaks` "pelado" **no** la reporta, porque tiene en su allowlist las claves de ejemplo de AWS (terminan en `EXAMPLE`). El analizador de GitLab **sí** la reporta: usa Gitleaks como motor, pero con el ruleset propio de GitLab, que no tiene esa excepción. Es una diferencia de configuración entre herramientas que vale la pena conocer.
 3. **En el pipeline**: el job `secret_detection` la reportó (`AWS access token` en `server/app/config_prueba.py:1`) y falló.
-4. La borré en otro commit y el job volvió a verde.
+4. La borré en otro commit y el job volvió a verde. Runs: [rojo](https://github.com/imanolmarin/desafio-jwt/actions/runs/42737349283) → [verde](https://github.com/imanolmarin/desafio-jwt/actions/runs/42737543834).
 
 **Pero la credencial sigue en el historial.** El job analiza el árbol del último commit, así que después del borrado ya no la ve; sin embargo, `git log -p` la sigue mostrando y cualquiera que haya clonado la rama la tiene. Borrarla del código no la "des-filtra": si hubiese sido real, lo correcto es **revocarla/rotarla** en AWS primero y recién después limpiar el historial (`git filter-repo`) o, como hice acá, descartar la rama.
 
